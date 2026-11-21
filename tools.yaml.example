@@ -1,0 +1,132 @@
+sources:
+  disease-pg-source:
+    kind: postgres
+    host: 127.0.0.1
+    port: 5432
+    database: capstone_paru
+    user: your_db_user
+    password: your_db_password
+
+tools:
+  search-disease-by-location:
+    kind: postgres-sql
+    source: disease-pg-source
+    description: Search for diseases based on location.
+    parameters:
+      - name: location
+        type: string
+        description: The location of the disease.
+
+    statement: |
+      SELECT
+          p.nama,
+          p.id_sistem_tubuh,
+          p.ringkasan,
+          bt.nama AS nama_bagian_tubuh,
+          bt.tampilan
+      FROM penyakit p
+      JOIN penyakit_bagian_tubuh pbt
+          ON p.id = pbt.id_penyakit
+      JOIN bagian_tubuh bt
+          ON pbt.id_bagian_tubuh = bt.id
+      WHERE bt.nama ILIKE '%' || $1 || '%';
+
+  get-article-by-disease:
+    kind: postgres-sql
+    source: disease-pg-source
+    description: Get complete educational article for a specific disease name.
+    parameters:
+      - name: disease_name
+        type: string
+        description: The name of the disease.
+
+    statement: |
+      SELECT
+          a.id,
+          a.konten_teks
+      FROM artikel a
+      JOIN penyakit p
+          ON a.id_penyakit = p.id
+      WHERE p.nama ILIKE '%' || $1 || '%';
+
+  get-disease-urgency:
+    kind: postgres-sql
+    source: disease-pg-source
+    description: Check medical urgency level of a disease (normal, warning, emergency).
+    parameters:
+      - name: disease_name
+        type: string
+        description: The name of the disease.
+
+    statement: |
+      SELECT
+          nama,
+          tingkat_urgensi,
+          ringkasan
+      FROM penyakit
+      WHERE nama ILIKE '%' || $1 || '%';
+
+  get-pathogen-by-disease:
+    kind: postgres-sql
+    source: disease-pg-source
+    description: Get pathogen or microorganism causing a disease (virus, bacteria, fungus).
+    parameters:
+      - name: disease_name
+        type: string
+        description: The name of the disease.
+
+    statement: |
+      SELECT
+          pt.nama AS patogen,
+          pt.jenis,
+          pt.deskripsi
+      FROM penyakit_patogen pp
+      JOIN penyakit p
+          ON pp.id_penyakit = p.id
+      JOIN patogen pt
+          ON pp.id_patogen = pt.id
+      WHERE p.nama ILIKE '%' || $1 || '%';
+
+  get-disease-references:
+    kind: postgres-sql
+    source: disease-pg-source
+    description: Get official medical reference links for a disease.
+    parameters:
+      - name: disease_name
+        type: string
+        description: The name of the disease.
+
+    statement: |
+      SELECT
+          r.url
+      FROM referensi r
+      JOIN penyakit p
+          ON r.id_penyakit = p.id
+      WHERE p.nama ILIKE '%' || $1 || '%';
+
+  search-faq:
+    kind: postgres-sql
+    source: disease-pg-source
+    description: Search frequently asked questions about the system and body map feature.
+    parameters:
+      - name: keyword
+        type: string
+        description: The keyword to search in questions and answers.
+
+    statement: |
+      SELECT
+          pertanyaan,
+          jawaban
+      FROM faq
+      WHERE pertanyaan ILIKE '%' || $1 || '%'
+         OR jawaban ILIKE '%' || $1 || '%'
+      LIMIT 3;
+
+toolsets:
+  disease_toolset:
+    - search-disease-by-location
+    - get-article-by-disease
+    - get-disease-urgency
+    - get-pathogen-by-disease
+    - get-disease-references
+    - search-faq
